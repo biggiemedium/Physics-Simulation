@@ -1,6 +1,7 @@
 package dev.px.physics.Rendering.Window;
 
 import dev.px.physics.Rendering.Camera;
+import dev.px.physics.Rendering.Graphics.DebugHUD;
 import dev.px.physics.Rendering.Scenes.Api.Scene;
 import dev.px.physics.System.InputSystem;
 import dev.px.physics.Util.Vec3d;
@@ -24,7 +25,7 @@ public class Window {
     private long windowHandle = 0L;
 
     private Scene currentScene;
-    private InputSystem inputSystem;
+    private DebugHUD debugHUD;
 
     public Window(String title, int width, int height) {
         this.title = title;
@@ -53,6 +54,7 @@ public class Window {
         GL.createCapabilities();
 
         // enable GL11 (OpenGL 1.1)
+        // allows for 3d rendering capabilities
         GL11.glClearColor(0f, 0f, 0f, 1f);
         GL11.glEnable(GL11.GL_DEPTH_TEST);
         GL11.glDepthFunc(GL11.GL_LEQUAL);
@@ -61,6 +63,7 @@ public class Window {
 
         glfwSwapInterval(1);
 
+        // input callback
         glfwSetMouseButtonCallback(windowHandle, (win, button, action, mods) -> {
             double[] x = new double[1];
             double[] y = new double[1];
@@ -78,6 +81,7 @@ public class Window {
             }
         });
 
+        // Input callback
         glfwSetCursorPosCallback(windowHandle, (win, xpos, ypos) -> {
             if (currentScene != null && currentScene.getInputSystem() != null) {
                 currentScene.getInputSystem().handleMouseMove(xpos, ypos);
@@ -85,9 +89,11 @@ public class Window {
         });
 
 
-
         glfwShowWindow(windowHandle);
+        debugHUD = new DebugHUD(width, height);
+        debugHUD.init();
     }
+
 
     public void setScene(Scene scene) {
         if (this.currentScene != null) {
@@ -96,6 +102,8 @@ public class Window {
 
         this.currentScene = scene;
 
+        // onLoad must come before because it handlse our camera setup
+        // otherwise the camera will not move position or rotation
         this.currentScene.onLoad();
         this.currentScene.init(windowHandle);
     }
@@ -121,8 +129,10 @@ public class Window {
                     applyCameraTransform(currentScene.getCamera());
                 }
 
-
                 currentScene.render(mouseX[0], mouseY[0], delta);
+                if (currentScene.getCamera() != null) {
+                    debugHUD.render(currentScene.getCamera());
+                }
             }
 
             glfwSwapBuffers(windowHandle);
@@ -132,15 +142,28 @@ public class Window {
 
     private void setupPerspective() {
         GL11.glMatrixMode(GL11.GL_PROJECTION);
-        GL11.glLoadIdentity();
+        GL11.glLoadIdentity(); // reset any previous projection
 
+        // Aspect ratio = screen width / height
+        // Keeps objects from looking stretched
         double fov = 70.0;
         double aspect = (double) width / (double) height;
+
+        // Near and far clipping planes
+        // Anything closer than zNear or farther than zFar is not drawn
         double zNear = 0.1;
         double zFar = 1000.0;
 
+        // tan(angle) = opposite / adjacent
+        // so we use tan(FOV/2) to get how tall the view is at distance zNear
         double fH = Math.tan(fov / 360.0 * Math.PI) * zNear;
+
+        // Width of the view box is based on aspect ratio
+        // wider screen -> wider view
         double fW = fH * aspect;
+
+        // Create a perspective projection box (frustum)
+        // This makes far objects look smaller and creates 3D depth
         GL11.glFrustum(-fW, fW, -fH, fH, zNear, zFar);
 
         GL11.glMatrixMode(GL11.GL_MODELVIEW);
@@ -152,6 +175,8 @@ public class Window {
         Vec3d forward = camera.getForward();
         Vec3d up = camera.getUp();
 
+        // target = position + forward direction
+        // This gives a point straight in front of the camera
         Vec3d target = new Vec3d(
                 pos.x + forward.x,
                 pos.y + forward.y,
@@ -208,6 +233,9 @@ public class Window {
     public void cleanup() {
         if (currentScene != null) {
             currentScene.onUnload();
+        }
+        if (debugHUD != null) {
+            debugHUD.cleanup();
         }
         Callbacks.glfwFreeCallbacks(windowHandle);
         glfwDestroyWindow(windowHandle);
