@@ -5,6 +5,7 @@ import dev.px.physics.Rendering.Camera;
 import dev.px.physics.System.InputSystem;
 import dev.px.physics.System.PhysicsSystem;
 import dev.px.physics.System.ScalingSystem;
+import dev.px.physics.System.TrajectoriesSystem;
 import dev.px.physics.Util.Math.Vector.Vec3d;
 
 import java.util.ArrayList;
@@ -19,20 +20,31 @@ public class Scene {
     protected PhysicsSystem physicsSystem = new PhysicsSystem();
     protected InputSystem inputSystem;
     protected ScalingSystem scalingSystem;
+    protected TrajectoriesSystem trajectoriesSystem;
 
     public void init(long windowHandle) {
         if (camera == null) {
             camera = new Camera(new Vec3d(0, 0, 0));
         }
         this.inputSystem = new InputSystem(windowHandle, camera);
+
+        this.trajectoriesSystem = new TrajectoriesSystem(500);
+        for (PhysicalObject obj : objects) {
+            if (!obj.isPinned()) {
+                trajectoriesSystem.addObject(obj);
+            }
+        }
     }
 
     public void update(double delta) {
         physicsSystem.update(objects, delta);
 
+
         if (inputSystem != null) {
             inputSystem.update(delta);
         }
+
+        trajectoriesSystem.record();
     }
 
     public void render(double mouseX, double mouseY, double delta) {
