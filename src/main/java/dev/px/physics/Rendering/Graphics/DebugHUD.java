@@ -61,6 +61,9 @@ public class DebugHUD {
         }
     }
 
+    //private double[] memoryUsage() {
+    //}
+
     public void setSize(int width, int height) {
         nvgRenderer.setSize(width, height);
     }

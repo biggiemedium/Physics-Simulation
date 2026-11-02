@@ -79,6 +79,28 @@ public class NanoVGRenderer {
         }
     }
 
+    // Same as renderTextWithShadow but x is the middle of the text and y is the bottom
+    public void renderCenteredTextWithShadow(String text, float x, float y, float fontSize) {
+        try (MemoryStack stack = MemoryStack.stackPush()) {
+            NVGColor shadowColor = NVGColor.mallocStack(stack);
+            NVGColor textColor = NVGColor.mallocStack(stack);
+
+            nvgFontSize(vg, fontSize);
+            nvgFontFace(vg, "sans");
+            nvgTextAlign(vg, NVG_ALIGN_CENTER | NVG_ALIGN_BOTTOM);
+
+            // Black shadow
+            nvgRGBA((byte) 0, (byte) 0, (byte) 0, (byte) 180, shadowColor);
+            nvgFillColor(vg, shadowColor);
+            nvgText(vg, x + 1, y + 1, text);
+
+            // White text
+            nvgRGBA((byte) 255, (byte) 255, (byte) 255, (byte) 255, textColor);
+            nvgFillColor(vg, textColor);
+            nvgText(vg, x, y, text);
+        }
+    }
+
     public void setSize(int width, int height) {
         this.width = width;
         this.height = height;

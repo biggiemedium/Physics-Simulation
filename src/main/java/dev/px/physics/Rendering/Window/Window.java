@@ -4,6 +4,7 @@ import dev.px.physics.Rendering.Camera;
 import dev.px.physics.Rendering.Graphics.DebugHUD;
 import dev.px.physics.Rendering.Scenes.Api.Scene;
 import dev.px.physics.Util.Math.Vector.Vec3d;
+import dev.px.physics.Util.ScreenshotUtil;
 import org.lwjgl.glfw.Callbacks;
 import org.lwjgl.glfw.GLFW;
 import org.lwjgl.glfw.GLFWErrorCallback;
@@ -25,6 +26,9 @@ public class Window {
 
     private Scene currentScene;
     private DebugHUD debugHUD;
+
+    // set by the key callback, the actual screenshot happens at the end of the frame
+    private boolean screenshotRequested = false;
 
     public Window(String title, int width, int height) {
         this.title = title;
@@ -81,6 +85,14 @@ public class Window {
         });
 
         // Input callback
+        // Key callback, O takes a screenshot
+        // only on press so holding the key doesnt spam screenshots
+        glfwSetKeyCallback(windowHandle, (win, key, scancode, action, mods) -> {
+            if (key == GLFW_KEY_O && action == GLFW_PRESS) {
+                screenshotRequested = true;
+            }
+        });
+
         glfwSetCursorPosCallback(windowHandle, (win, xpos, ypos) -> {
             if (currentScene != null && currentScene.getInputSystem() != null) {
                 currentScene.getInputSystem().handleMouseMove(xpos, ypos);
@@ -132,6 +144,18 @@ public class Window {
                 if (currentScene.getCamera() != null) {
                     debugHUD.render(currentScene.getCamera());
                 }
+            }
+
+            // After the HUD so the FPS and rotation text end up in the screenshot
+            if (screenshotRequested) {
+                screenshotRequested = false;
+
+                // framebuffer size not window size, they can be different on high dpi screens
+                int[] fbWidth = new int[1];
+                int[] fbHeight = new int[1];
+                glfwGetFramebufferSize(windowHandle, fbWidth, fbHeight);
+
+                ScreenshotUtil.takeScreenshot(fbWidth[0], fbHeight[0]);
             }
 
             glfwSwapBuffers(windowHandle);

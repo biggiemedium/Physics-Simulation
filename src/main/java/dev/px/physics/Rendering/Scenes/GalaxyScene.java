@@ -1,5 +1,6 @@
 package dev.px.physics.Rendering.Scenes;
 
+import dev.px.physics.Objects.Impl.NameTagVisualization;
 import dev.px.physics.Objects.Impl.Planets.*;
 import dev.px.physics.Objects.Impl.TrajectoryVisualization;
 import dev.px.physics.Objects.PhysicalObject;
@@ -25,7 +26,21 @@ public class GalaxyScene extends Scene {
     @Override
     public void init(long windowHandle) {
         super.init(windowHandle);
+
+        // Debris and meteors get shorter trails so they dont clutter the scene
+        // re-add them with their own max points, planets keep the full 800
+        for (PhysicalObject obj : objects) {
+            if (obj instanceof Debris || obj instanceof Meteor) {
+                trajectoriesSystem.removeObject(obj);
+                trajectoriesSystem.addObject(obj, 120);
+            }
+        }
+
+        // trajectoriesSystem only exists after super.init so this has to go here, not in onLoad
         addRenderable(new TrajectoryVisualization(trajectoriesSystem));
+
+        // last so the names draw over everything else
+        addRenderable(new NameTagVisualization(objects));
     }
 
     @Override
@@ -79,20 +94,36 @@ public class GalaxyScene extends Scene {
                 3
         );
 
+        // MARS
+        // Earth is half the sun's mass so it throws Mars around a lot, nothing out here is fully stable
+        // starting on the opposite side of the sun to Earth keeps it around the longest (~2.5 min)
+        double marsOrbitRadius = 220;
+        double marsOrbitalVelocity = Math.sqrt(MathConstants.GRAVITY * sunMass / marsOrbitRadius);
+
+        MarsPlanet mars = new MarsPlanet(
+                new Vec3d(-marsOrbitRadius, 0, 0),
+                new Vec3d(0, 0, -marsOrbitalVelocity), // flipped so it goes round the same way as Earth
+                0.3,
+                5
+        );
+
         addObject(moon);
         addRenderable(moon);
 
         addObject(sun);
-        addRenderable(sun);
 
         addObject(earth);
         addRenderable(earth);
 
-        TrajectoryVisualization trajectoryVisualization = new TrajectoryVisualization(trajectoriesSystem);
-        addRenderable(trajectoryVisualization);
+        addObject(mars);
+        addRenderable(mars);
 
-       // spawnMeteors(sunMass);
-       // spawnDebris();
+        spawnMeteors(sunMass);
+        spawnDebris();
+
+        // Sun renders last out of the bodies, its glow doesnt write depth
+        // so anything drawn after it would just paint over the glow
+        addRenderable(sun);
 
         // I genuinely have no idea how this breaks rotation alignment but it does
        // removeIfBoundsViolated();
@@ -120,7 +151,7 @@ public class GalaxyScene extends Scene {
 
     private void spawnMeteors(double sunMass) {
         Random rng = new Random(42);
-        int count = 6;
+        int count = 1; // was 6, turned down for demo screenshots
 
         Color[] meteorColors = {
                 new Color(255, 240, 200),
@@ -160,7 +191,7 @@ public class GalaxyScene extends Scene {
 
     private void spawnDebris() {
         Random rng = new Random(7);
-        int count = 40;
+        int count = 1; // was 40, turned down for demo screenshots
 
         double sunMass = 10;
         double beltInner = 130;

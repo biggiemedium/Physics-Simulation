@@ -28,7 +28,7 @@ public class Scene {
         }
         this.inputSystem = new InputSystem(windowHandle, camera);
 
-        this.trajectoriesSystem = new TrajectoriesSystem(500);
+        this.trajectoriesSystem = new TrajectoriesSystem(800);
         for (PhysicalObject obj : objects) {
             if (!obj.isPinned()) {
                 trajectoriesSystem.addObject(obj);

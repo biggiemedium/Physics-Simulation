@@ -1,89 +1,60 @@
 package dev.px.physics.Objects.Impl.Planets;
 
-import dev.px.physics.Util.Math.MathConstants;
 import dev.px.physics.Util.Math.Vector.Vec3d;
-import org.lwjgl.opengl.GL11;
 
 import java.awt.*;
-
-import static org.lwjgl.opengl.GL11.GL_QUAD_STRIP;
 
 /**
  * @author James
  */
 public class SunPlanet extends Planet {
 
+    private static final Color DEEP_ORANGE = new Color(230, 90, 0);
+    private static final Color ORANGE = new Color(255, 160, 20);
+    private static final Color YELLOW = new Color(255, 230, 120);
+
+    // used to make the surface boil over time
+    private double time = 0;
+
     public SunPlanet(Vec3d position, Vec3d velocity, double mass, double radius) {
-        super(position, velocity, mass, radius);
+        super("Sun", position, velocity, mass, radius);
+        this.spinSpeed = 4;
     }
 
-    // https://stackoverflow.com/questions/7687148/drawing-sphere-in-opengl-without-using-glusphere
-    /*
-    We approximate a continuous sphere using a discrete parametric grid.
-    Let:
-        N = number of latitude segments
-        M = number of longitude segments
-        r = radius of sphere
-
-    We define two angles:
-        φ_i = -π/2 + (i * π / N)          for i = 0, 1, ..., N
-        θ_j = (2π * j / M)                for j = 0, 1, ..., M
-
-    These correspond to:
-        φ (phi)  = latitude  (bottom → top)
-        θ (theta)= longitude (around Y-axis)
-
-   Each vertex on the sphere is defined by the parametric mapping:
-
-        x(i, j) = r * cos(φ_i) * cos(θ_j)
-        y(i, j) = r * cos(φ_i) * sin(θ_j)
-        z(i, j) = r * sin(φ_i)
-     */
     @Override
     public void render(double mouseX, double mouseY, double delta) {
         super.render(mouseX, mouseY, delta);
 
+        time += delta;
+        spin += spinSpeed * delta;
 
-        GL11.glPushMatrix();
+        renderSphere(48);
 
-        GL11.glBegin(GL11.GL_TRIANGLE_FAN);
-
-        // Recall: (x - a)² + (y - b)² + (z - c)² = r² (sphere)
-        // where (a, b, c) is the center and r is the radius
-
-        int segments = 32;
-        int latitude = segments;
-        int longitude = segments;
-
-        for(int i = 0; i <= latitude; i++) {
-            double lat0 = Math.PI * (-0.5 + (double) (i - 1) / latitude);
-            double z0  = Math.sin(lat0);
-            double zr0 =  Math.cos(lat0);
-
-            double lat1 = Math.PI * (-0.5 + (double) i / latitude);
-            double z1 = Math.sin(lat1);
-            double zr1 = Math.cos(lat1);
-
-            GL11.glBegin(GL11.GL_QUAD_STRIP);
-            Color c = new Color(255, 175, 1, 255);
-            GL11.glColor3d((double) c.getRed() / 255, (double) c.getGreen() / 255, (double) c.getBlue() / 255);
-
-            for(int j = 0; j <= longitude; j++) {
-                double lng = 2 * Math.PI * (double) (j - 1) / longitude;
-                double x = Math.cos(lng);
-                double y = Math.sin(lng);
-
-                GL11.glNormal3d(x * zr0, y * zr0, z0);
-                GL11.glVertex3d(radius * x * zr0, radius * y * zr0, radius * z0);
-                GL11.glNormal3d(x * zr1, y * zr1, z1);
-                GL11.glVertex3d(radius * x * zr1, radius * y * zr1, radius * z1);
-            }
-            GL11.glEnd();
-        }
-
-
-        GL11.glPopMatrix();
+        // Two layers of glow, a tight bright one and a big faint one
+        renderGlow(radius * 0.9, radius * 1.8, new Color(255, 200, 80), 0.55, true);
+        renderGlow(radius * 0.9, radius * 4.0, new Color(255, 120, 20), 0.25, true);
     }
 
+    @Override
+    protected Color getSurfaceColor(double nx, double ny, double nz) {
+        // granulation, the noise slowly moves with time so the surface looks alive
+        double n = fakeNoise(nx * 2, ny * 2, nz * 2, time * 0.3);
 
+        // map noise (-1.75 to 1.75) to 0 to 1
+        double t = (n + 1.75) / 3.5;
+
+        if (t < 0.5) {
+            return mix(DEEP_ORANGE, ORANGE, t * 2);
+        }
+        return mix(ORANGE, YELLOW, (t - 0.5) * 2);
+    }
+
+    @Override
+    protected double getBrightness(double nx, double ny, double nz) {
+        // The sun makes its own light so no lambert shading
+        // instead we do limb darkening, the edges of the sun look darker than the middle
+        // because we see the cooler outer layers at a shallow angle
+        double facing = Math.max(0, nx * toCamera.x + ny * toCamera.y + nz * toCamera.z);
+        return 0.55 + 0.6 * facing;
+    }
 }
